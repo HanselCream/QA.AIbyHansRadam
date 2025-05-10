@@ -1,0 +1,216 @@
+{
+  "name": "Facebook Messenger AI Chatbot",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "GET",
+        "path": "facebook-incoming"
+      },
+      "id": "1",
+      "name": "GET RESPONSE FROM FB META",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [
+        200,
+        100
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "boolean": [],
+          "number": [],
+          "string": [
+            {
+              "value1": "={{$json[\"query\"][\"hub.verify_token\"]}}",
+              "value2": "my_secret_token"
+            }
+          ]
+        }
+      },
+      "id": "2",
+      "name": "Validation Checker",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [
+        400,
+        100
+      ]
+    },
+    {
+      "parameters": {
+        "responseData": "={{$json[\"query\"][\"hub.challenge\"]}}"
+      },
+      "id": "3",
+      "name": "CONFIRM challenge response",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [
+        600,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "responseCode": 403,
+        "responseData": "Access Denied"
+      },
+      "id": "4",
+      "name": "Error Check",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [
+        600,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "facebook-incoming"
+      },
+      "id": "5",
+      "name": "POST FROM FB",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [
+        200,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "functionCode": "return [{ json: { sender_id: $json.entry[0].messaging[0].sender.id, text: $json.entry[0].messaging[0].message.text } }];"
+      },
+      "id": "6",
+      "name": "Extract Message",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [
+        400,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "model": "gpt-3.5-turbo",
+        "prompt": "You are an AI assistant helping a small business. Answer this: {{$json[\"text\"]}}"
+      },
+      "id": "7",
+      "name": "OpenRouter Chat Model",
+      "type": "n8n-nodes-base.openai",
+      "typeVersion": 1,
+      "position": [
+        600,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "url": "https://graph.facebook.com/v18.0/PAGE_ID/messages",
+        "method": "POST",
+        "bodyParametersUi": {
+          "parameter": [
+            {
+              "name": "recipient",
+              "value": "{\"id\":\"{{$json[\"sender_id\"]}}\"}"
+            },
+            {
+              "name": "message",
+              "value": "{\"text\":\"{{$json[\"choices\"][0][\"message\"][\"content\"]}}\"}"
+            }
+          ]
+        },
+        "options": {
+          "headers": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ],
+          "queryParameters": [
+            {
+              "name": "access_token",
+              "value": "PAGE_ACCESS_TOKEN"
+            }
+          ]
+        }
+      },
+      "id": "8",
+      "name": "Send Reply to FB",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 1,
+      "position": [
+        800,
+        300
+      ]
+    }
+  ],
+  "connections": {
+    "GET RESPONSE FROM FB META": {
+      "main": [
+        [
+          {
+            "node": "Validation Checker",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validation Checker": {
+      "main": [
+        [
+          {
+            "node": "CONFIRM challenge response",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Error Check",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "POST FROM FB": {
+      "main": [
+        [
+          {
+            "node": "Extract Message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract Message": {
+      "main": [
+        [
+          {
+            "node": "OpenRouter Chat Model",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenRouter Chat Model": {
+      "main": [
+        [
+          {
+            "node": "Send Reply to FB",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "createdAt": "2025-05-10T03:01:03.441353",
+  "updatedAt": "2025-05-10T03:01:03.441363"
+}
